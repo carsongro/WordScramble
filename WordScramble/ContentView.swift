@@ -12,6 +12,7 @@ struct ContentView: View {
     @State private var usedWords = [String]()
     @State private var rootWord = ""
     @State private var newWord = ""
+    @State private var score = 0
     
     @State private var errorTitle = ""
     @State private var errorMessage = ""
@@ -21,6 +22,7 @@ struct ContentView: View {
         NavigationView {
             List {
                 Section {
+                    Text("Score: \(score)")
                     TextField("Enter your word", text: $newWord)
                         .autocapitalization(.none)
                 }
@@ -36,6 +38,9 @@ struct ContentView: View {
             .navigationTitle(rootWord)
             .onSubmit(addNewWord)
             .onAppear(perform: startGame)
+            .toolbar {
+                Button("New Word", action: startGame)
+            }
             .alert(errorTitle, isPresented: $showingError) {
                 Button("OK", role: .cancel) { }
             } message: {
@@ -62,15 +67,27 @@ struct ContentView: View {
             wordError(title: "Word not recognized", message: "You can't just make them up you know!")
             return
         }
+        guard isOriginalWord(word: answer) else {
+            wordError(title: "Word cannot be original word", message: "Make sure word is not the original word")
+            return
+        }
+        guard longEnough(word: answer) else {
+            wordError(title: "Word too short", message: "Make sure the word is longer than 3 letters")
+            return
+        }
         
         withAnimation {
             usedWords.insert(answer, at: 0)
         }
         
+        score += newWord.count
+        
         newWord = ""
     }
     
     func startGame() {
+        usedWords = []
+        score = 0
         if let startWordURL = Bundle.main.url(forResource: "start", withExtension: "txt") {
             if let startWords = try? String(contentsOf: startWordURL) {
                 let allWords = startWords.components(separatedBy: "\n")
@@ -105,6 +122,14 @@ struct ContentView: View {
         let range = NSRange(location: 0, length: word.utf16.count)
         let misspelledRange = checker.rangeOfMisspelledWord(in: word, range: range, startingAt: 0, wrap: false, language: "en")
         return misspelledRange.location == NSNotFound
+    }
+    
+    func isOriginalWord(word: String) -> Bool {
+        !(rootWord == word)
+    }
+    
+    func longEnough(word: String) -> Bool {
+        !(word.count < 3)
     }
     
     func wordError(title: String, message: String) {
